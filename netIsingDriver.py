@@ -7,7 +7,7 @@
 
 import networkx as nx
 import pylab as pl
-import sys, random, argparse
+import sys, random, argparse, os
 
 # =============================================================================
 def parseCMD():
@@ -27,23 +27,26 @@ def parseCMD():
             help='enter magnetic field strength')
     parser.add_argument('--exchange', '-J', type=float, default=1,
             help='enter the value of the exchange constant')
-    parser.add_argument('--sweeps', '-s', type=int, default = 2,
+    parser.add_argument('--sweeps', '-s', type=int, default = 2000,
             help='enter the number of MC sweeps')
     return parser.parse_args()
 
-def swapSpinInList(spinUp, spinDown, spin):
+# =============================================================================
+def swapSpin(spinUp, spinDown, spin, totSpin):
     """
     Removes a node index from one list and puts it in the other.
     """
     if spin in spinDown:
         spinDown.remove(spin)
         spinUp.append(spin)
+        totSpin += 2
     else:
         spinUp.remove(spin)
         spinDown.append(spin)
-    
-    return spinUp, spinDown
+        totSpin -= 2
+    return spinUp, spinDown, totSpin
 
+# =============================================================================
 def EnergyChange(spinUp, G, J, R):
     """
     calculates the energy change of flipping a spin.
@@ -68,10 +71,10 @@ def main():
     J, s = float(args.exchange), int(args.sweeps)
     k_B = 1     # = 1.3806503 * pow(10,-23)
 
-    # Define graph.  For complete list of predefined graphs, see:
     # http://networkx.github.com/documentation/latest/tutorial/
     #   tutorial.html#adding-attributes-to-graphs-nodes-and-edges
     G = nx.complete_graph(N)
+    #G = nx.karate_club_graph()
 
     # keep track of spins of nodes
     spinUp, spinDown = [], []
@@ -89,9 +92,33 @@ def main():
             else:
                 pass
     
+    # compute initial quantities
+    totSpin = len(spinUp) - len(spinDown)
+    spinSum = 0.0
+    for i in range(len(G)):
+        if i in spinUp:
+            tempSpin = 1.0
+        else:
+            tempSpin = -1.0
+        for j in G[i]:
+            spinSum += tempSpin*G[i][j] 
+    E = - 0.5 * J * spinSum     # divide by two because of double counting
+    M = 1.0*totSpin/(1.0*N)
+    
     # define arrays for mcSteps, Energies, Magnetism
-    mcSteps, Es, Ms = pl.arange(s), pl.array([]), pl.array([])
-    #E2 = np.array([E*E]) 
+    mcSteps, Es, Ms = pl.arange(s), pl.array([E]), pl.array([M])
+    E2 = pl.array([E*E]) 
+
+    # keep track of acceptance
+    a = 0       # accepted moves
+    r = 0       # rejected moves
+    if args.showHist:
+        pl.ion()
+        position = nx.circular_layout(G)
+        nx.draw_networkx_nodes(G,position, nodelist=spinUp, node_color='black')
+        nx.draw_networkx_nodes(G,position, nodelist=spinDown, node_color='pink')
+        nx.draw_networkx_edges(G,position)
+        nx.draw_networkx_labels(G,position)
 
     for step in mcSteps:
         # randomly choose a node to try to flip the spin
@@ -99,22 +126,72 @@ def main():
         
         # compute change in energy from flipping that spin
         delE = EnergyChange(spinUp, G, J, R)
-        
-        sys.exit()
-    spin = 2
-    spinUp, spinDown = swapSpinInList(spinUp, spinDown, spin)
-    
-    # plot the network with colored nodes indicating spin 
-    fig1 = pl.figure(1)
-    p1 = fig1.add_subplot(111)
-    position = nx.circular_layout(G)
-    nx.draw_networkx_nodes(G,position, nodelist=spinUp, node_color='black')
-    nx.draw_networkx_nodes(G,position, nodelist=spinDown, node_color='pink')
-    nx.draw_networkx_edges(G,position)
-    #nx.draw_networkx_labels(G,position)
-     
-    pl.show()
 
-# =============================================================================
+        # calculate Boltzmann factor
+        Boltz = pl.exp(-1.0*delE/(k_B*T))
+
+        if (delE <= 0):
+            reject = False
+            E += delE
+            spinUp, spinDown, totSpin = swapSpin(spinUp,
+                    spinDown, R, totSpin) 
+        else:
+            n = random.random()
+            if (n <= Boltz):
+                E += delE
+                reject = False
+                spinUp, spinDown, totSpin = swapSpin(spinUp,
+                        spinDown, R, totSpin) 
+            else:
+                reject = True
+
+        if reject==True:
+            r += 1
+        else:
+            a += 1
+        
+        # calculate magnetism (not absolute value)
+        M = 1.0*totSpin/(1.0*N)
+
+        # store magnetism, energy in array
+        Es = pl.append(Es, E)
+        Ms = pl.append(Ms, M)
+        E2 = pl.append(E2, E*E)
+
+        if args.showHist:
+            pl.cla()
+            position = nx.circular_layout(G)
+            nx.draw_networkx_nodes(G,position, nodelist=spinUp, node_color='black')
+            nx.draw_networkx_nodes(G,position, nodelist=spinDown, node_color='pink')
+            nx.draw_networkx_edges(G,position)
+            nx.draw_networkx_labels(G,position)
+            pl.draw()
+
+    if args.showHist:
+        #pl.savefig("SORhistogram.png")
+        pl.close()
+        pl.ioff()
+
+    print 'acceptance ratio: ', 1.0*a/(r+a)
+
+    if os.path.exists('./data/'):
+        os.chdir('./data/')
+    else:
+        os.mkdir('./data/')
+        os.chdir('./data/')
+
+    filename = 'ising2D_L%s_s%s_Temp%s.dat'%(int(N), s, T)
+    fid = open(filename, 'w')
+    fid.write('# temp:  %s\n'%T)
+    fid.write('# nodes:  %s\n'%N)
+    fid.write('# field:  %s\n'%H)
+    fid.write('# %15s\t%15s\t%15s\t%15s\n'%('mcSteps','Energies',
+        'Magnetism','Energy^2'))
+    zipped = zip(mcSteps, Es, Ms, E2)
+    pl.savetxt(fid, zipped, fmt='%5.9f\t%5.9f\t%5.9f\t%5.9f')
+    fid.close()
+    print 'Data has been saved to: ',filename
+    
+   # =============================================================================
 if __name__=='__main__':
     main()
