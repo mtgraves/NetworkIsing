@@ -63,6 +63,26 @@ def EnergyChange(spinUp, G, J, R):
     return delE
 
 # =============================================================================
+def updatePlot(G, position, spinUp, spinDown, upColor, downColor, ax):
+    """
+    Updates plot of network for viewing MC moves.
+    """
+    pl.cla()
+    position = nx.circular_layout(G)
+    nx.draw_networkx_nodes(G,position, nodelist=spinUp,
+        node_color=upColor)
+    nx.draw_networkx_nodes(G,position, nodelist=spinDown,
+        node_color=downColor)
+    nx.draw_networkx_edges(G,position)
+    nx.draw_networkx_labels(G,position)
+    ax.text(-0.1, 0.98, 'Spin Up', style='italic',
+            bbox={'facecolor':upColor, 'alpha':0.9, 'pad':10})
+    ax.text(-0.1, 1.1, 'Spin Down', style='italic',color='White',
+            bbox={'facecolor':downColor, 'alpha':0.9, 'pad':10})
+
+    pl.draw()
+
+# =============================================================================
 def main():
 
     # assign variables, define constants
@@ -70,6 +90,8 @@ def main():
     T,H,N = float(args.temp), float(args.field), int(args.nodes)
     J, s = float(args.exchange), int(args.sweeps)
     k_B = 1     # = 1.3806503 * pow(10,-23)
+    upColor = 'Fuchsia'
+    downColor = 'Black'
 
     # http://networkx.github.com/documentation/latest/tutorial/
     #   tutorial.html#adding-attributes-to-graphs-nodes-and-edges
@@ -114,11 +136,9 @@ def main():
     r = 0       # rejected moves
     if args.showHist:
         pl.ion()
+        fig = pl.figure(1)
+        ax = fig.add_subplot(111)
         position = nx.circular_layout(G)
-        nx.draw_networkx_nodes(G,position, nodelist=spinUp, node_color='black')
-        nx.draw_networkx_nodes(G,position, nodelist=spinDown, node_color='pink')
-        nx.draw_networkx_edges(G,position)
-        nx.draw_networkx_labels(G,position)
 
     for step in mcSteps:
         # randomly choose a node to try to flip the spin
@@ -153,22 +173,15 @@ def main():
         # calculate magnetism (not absolute value)
         M = 1.0*totSpin/(1.0*N)
 
-        # store magnetism, energy in array
+        # store observables in array
         Es = pl.append(Es, E)
         Ms = pl.append(Ms, M)
         E2 = pl.append(E2, E*E)
 
         if args.showHist:
-            pl.cla()
-            position = nx.circular_layout(G)
-            nx.draw_networkx_nodes(G,position, nodelist=spinUp, node_color='black')
-            nx.draw_networkx_nodes(G,position, nodelist=spinDown, node_color='pink')
-            nx.draw_networkx_edges(G,position)
-            nx.draw_networkx_labels(G,position)
-            pl.draw()
+            updatePlot(G, position, spinUp, spinDown, upColor, downColor, ax)       
 
     if args.showHist:
-        #pl.savefig("SORhistogram.png")
         pl.close()
         pl.ioff()
 
@@ -192,6 +205,6 @@ def main():
     fid.close()
     print 'Data has been saved to: ',filename
     
-   # =============================================================================
+# =============================================================================
 if __name__=='__main__':
     main()
