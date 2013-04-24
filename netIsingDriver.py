@@ -96,7 +96,9 @@ def main():
     # http://networkx.github.com/documentation/latest/tutorial/
     #   tutorial.html#adding-attributes-to-graphs-nodes-and-edges
     #G = nx.complete_graph(N)
-    G = nx.karate_club_graph()
+    #G = nx.karate_club_graph()
+    z=[3 for i in range(N)]
+    G=nx.expected_degree_graph(z)
 
     # keep track of spins of nodes
     spinUp, spinDown = [], []
