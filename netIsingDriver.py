@@ -2,12 +2,12 @@
 # Main Driver for Ising Model Applied to Networks
 #
 # Author:               Max Graves
-# Last Revised:         2-APR-2013
+# Last Revised:         01-MAY-2013
 # =============================================================================
 
 import networkx as nx
 import pylab as pl
-import sys, random, argparse, os
+import sys, random, argparse, os, subprocess, glob
 
 # =============================================================================
 def parseCMD():
@@ -16,9 +16,11 @@ def parseCMD():
     """
     parser = argparse.ArgumentParser(description = 'Ising Model for Networks')
     parser.add_argument("-S", "--showHist", action="store_true",
-            dest="showHist",
-            default=False,
+            dest="showHist", default=False,
             help="show the simulation in histogram form (SLOW!)")
+    parser.add_argument("-E", "--evolve", action="store_true",
+            dest="evolve", default=False,
+            help="save images to disk of algorithm (for video)")
     parser.add_argument('--nodes', '-N', type=int, default=10,
             help='number of nodes in network')
     parser.add_argument('--temp', '-T', type=float, default = 5.0,
@@ -30,6 +32,18 @@ def parseCMD():
     parser.add_argument('--sweeps', '-s', type=int, default = 2000,
             help='enter the number of MC sweeps')
     return parser.parse_args()
+
+# =============================================================================
+def findMencoder():
+    """ checks for Mencoder, returns error and exits if it doesn't find it """
+    try:
+        subprocess.check_call(['mencoder'])
+    except subprocess.CalledProcessError:
+        print "mencoder command was found"
+        pass
+    except OSError:
+        print 'could not find mencoder.'
+        sys.exit("quitting\n")
 
 # =============================================================================
 def swapSpin(spinUp, spinDown, spin, totSpin):
@@ -63,7 +77,7 @@ def EnergyChange(spinUp, G, J, R):
     return delE
 
 # =============================================================================
-def updatePlot(G, position, spinUp, spinDown, upColor, downColor, ax):
+def updatePlot(G, position, spinUp, spinDown, upColor, downColor, ax, E, step):
     """
     Updates plot of network for viewing MC moves.
     """
@@ -80,6 +94,16 @@ def updatePlot(G, position, spinUp, spinDown, upColor, downColor, ax):
     ax.text(-0.1, 1.1, 'Spin Down', style='italic',color='White',
             bbox={'facecolor':downColor, 'alpha':0.9, 'pad':10})
 
+    if E:
+        os.chdir('./data/')
+        if os.path.exists('./animate'):
+            pass
+        else:
+            os.mkdir('./animate/')
+        os.chdir('./animate/')
+        pl.savefig('animate_'+str(step)+'.png')
+        os.chdir('../..')
+
     pl.draw()
 
 # =============================================================================
@@ -92,13 +116,17 @@ def main():
     k_B = 1     # = 1.3806503 * pow(10,-23)
     upColor = 'Fuchsia'
     downColor = 'Black'
+    
+    if args.evolve:
+        findMencoder()
 
+    K = 3
     # http://networkx.github.com/documentation/latest/tutorial/
     #   tutorial.html#adding-attributes-to-graphs-nodes-and-edges
-    #G = nx.complete_graph(N)
+    G = nx.complete_graph(N)
     #G = nx.karate_club_graph()
-    z=[3 for i in range(N)]
-    G=nx.expected_degree_graph(z)
+    #z=[K for i in range(N)]
+    #G=nx.expected_degree_graph(z)
 
     # keep track of spins of nodes
     spinUp, spinDown = [], []
@@ -181,11 +209,28 @@ def main():
         E2 = pl.append(E2, E*E)
 
         if args.showHist:
-            updatePlot(G, position, spinUp, spinDown, upColor, downColor, ax)       
+            updatePlot(G, position, spinUp, spinDown, upColor, downColor, ax,
+                    args.evolve, step)       
 
     if args.showHist:
         pl.close()
         pl.ioff()
+
+    if args.evolve:
+        os.chdir('./data/animate/')
+        # set up bash commands to run mencoder
+        command = ('mencoder', 'mf://*.png', '-mf', 'type=png:w=800:h=600:fps=25',
+               '-ovc', 'lavc', '-lavcopts', 'vcodec=mpeg4', '-oac', 'copy',
+               '-o', 'fightingNodes.avi')
+
+        print "\n\nabout to execute:\n%s\n\n" % ' '.join(command)
+        subprocess.check_call(command)
+        print os.getcwd()
+        for image in glob.glob('*png*'):
+            os.remove(image)
+        os.chdir('../..')
+
+        print "\n The movie was written to 'fightingNodes.avi'"
 
     print 'acceptance ratio: ', 1.0*a/(r+a)
 
