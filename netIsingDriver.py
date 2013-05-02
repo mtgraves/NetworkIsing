@@ -21,6 +21,9 @@ def parseCMD():
     parser.add_argument("-E", "--evolve", action="store_true",
             dest="evolve", default=False,
             help="save images to disk of algorithm (for video)")
+    parser.add_argument("-A", "--align", action="store_true",
+            dest="align", default=False,
+            help="Start all spins in the up state")
     parser.add_argument('--nodes', '-N', type=int, default=10,
             help='number of nodes in network')
     parser.add_argument('--temp', '-T', type=float, default = 5.0,
@@ -133,7 +136,11 @@ def main():
 
     # assign each node a spin (\pm 1)
     for node in G:
-        r = 2.0*random.randint(0,1)-1.0
+        if args.align:
+            print 'Chose to start all spins in up position'
+            r = 1.0
+        else:
+            r = 2.0*random.randint(0,1)-1.0
         if r == 1.0:
             spinUp.append(node)
         else:
