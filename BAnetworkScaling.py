@@ -63,14 +63,14 @@ def main():
     # plot energy vs. temp
     fig1 = pl.figure(1)
     p1 = fig1.add_subplot(111)
-    pl.semilogx(numNodes, critTemp, marker='o', linewidth=0,
+    pl.semilogx(numNodes, critTemp, marker='o', linewidth=0, markersize=10,
             markerfacecolor='None', markeredgecolor='Indigo')
     pl.semilogx(numNodes,linY1, color='Blue')
     pl.grid(True)
     pl.ylabel(r'$T_c\ [K]$', size=20)
     pl.xlabel('Nodes', size=20)
-    pl.ylim(0)
-    pl.xlim(0)
+    pl.ylim(0,40)
+    pl.xlim(5,10000000)
    
     pl.show()
     
