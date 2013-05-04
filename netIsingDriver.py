@@ -123,13 +123,18 @@ def main():
     if args.evolve:
         findMencoder()
 
+    if args.align:
+        print 'Chose to start all spins in up position'
+
     K = 3
+    m = 5
     # http://networkx.github.com/documentation/latest/tutorial/
     #   tutorial.html#adding-attributes-to-graphs-nodes-and-edges
-    G = nx.complete_graph(N)
+    #G = nx.complete_graph(N)
     #G = nx.karate_club_graph()
     #z=[K for i in range(N)]
     #G=nx.expected_degree_graph(z)
+    G = nx.barabasi_albert_graph(N, m, seed=None)
 
     # keep track of spins of nodes
     spinUp, spinDown = [], []
@@ -137,7 +142,6 @@ def main():
     # assign each node a spin (\pm 1)
     for node in G:
         if args.align:
-            print 'Chose to start all spins in up position'
             r = 1.0
         else:
             r = 2.0*random.randint(0,1)-1.0

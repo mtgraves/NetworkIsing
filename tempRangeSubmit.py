@@ -28,6 +28,12 @@ def parseCMD():
     parser.add_argument("-f", "--TMax", type=float,
             default=5.0,
             help="Maximum value of temperature")
+    parser.add_argument("-A", "--align", action="store_true",
+            dest="align", default=False,
+            help="Start all spins in the up state")
+    parser.add_argument("-E", "--evolve", action="store_true",
+            dest="evolve", default=False,
+            help="save images to disk of algorithm (for video)")
     parser.add_argument("-e", "--step", type=float,
             default=0.1,
             help="increment to increase temp. each time")
@@ -91,6 +97,8 @@ def main():
         command = ("python netIsingDriver.py"+" -J "+str(args.Coupling)+ " -s "+
                 str(args.mcSweeps)+" -N "+str(args.nodes)+ " -T "+
                 str(temp))
+        if args.align:
+            command += ' -A'
         print command
         subprocess.check_call(command, shell=True)
         print "finished for temp: ",temp

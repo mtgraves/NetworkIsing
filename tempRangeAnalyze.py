@@ -3,7 +3,7 @@
 # This will plot the ferromagnetic phase transition.
 #
 # Author:           Max Graves
-# Last Revision:    22-MAR-2013
+# Last Revision:    2-MAY-2013
 # =============================================================================
 
 import subprocess, os, sys, argparse, glob
@@ -28,44 +28,52 @@ def main():
     args = parseCMD()
     os.chdir(args.direcN)
 
-    # holds all files created by phaseTransSubmit.py
-    files = glob.glob("*.dat*")
+    try:
+        temps, Es, Ms, Cvs = pl.loadtxt('ising2D_reduced.txt',
+                unpack=True)
+        print 'Found a reduced file!'
 
-    # arrays to hold data
-    temps, Es, Ms = pl.array([]), pl.array([]), pl.array([])
-    Cvs = pl.array([])
+    except:
+        print 'Didnt find reduced file.  Creating one'
+    
+        # holds all files created by phaseTransSubmit.py
+        files = glob.glob("*.dat*")
 
-    # fill arrays from data files
-    for f in files:
-        estFile = open(f,'r')
-        estLines = estFile.readlines();
-        tempT = float(estLines[0].split()[-1])
-        tempN = float(estLines[1].split()[-1])
-        tempH = float(estLines[2].split()[-1])
-        print 'temp: ',tempT
+        # arrays to hold data
+        temps, Es, Ms = pl.array([]), pl.array([]), pl.array([])
+        Cvs = pl.array([])
 
-        temps = pl.append(temps, float(tempT))
-        mcSteps, En, Mag, E2 = pl.loadtxt(f, unpack=True)
+        # fill arrays from data files
+        for f in files:
+            estFile = open(f,'r')
+            estLines = estFile.readlines();
+            tempT = float(estLines[0].split()[-1])
+            tempN = float(estLines[1].split()[-1])
+            tempH = float(estLines[2].split()[-1])
+            print 'temp: ',tempT
 
-        # take last half of data, no matter size of array
-        binAfter = int(args.include*En.size)
+            temps = pl.append(temps, float(tempT))
+            mcSteps, En, Mag, E2 = pl.loadtxt(f, unpack=True)
 
-        Cv = (pl.average(E2)-(pl.average(En))**2)/(tempN*tempT**2)
-        Es = pl.append(Es, pl.average(En[-binAfter:]))
-        Ms = pl.append(Ms, pl.average(Mag[-binAfter:]))
-        Cvs = pl.append(Cvs, Cv)
+            # take last half of data, no matter size of array
+            binAfter = int(args.include*En.size)
 
-    # write temps, Es, Ms to file
-    filename = 'ising2D_reduced.txt'
-    fid = open(filename, 'w')
-    fid.write('# nodes:  %s\n'%tempN)
-    fid.write('# field:  %s\n'%tempH)
-    fid.write('# %15s\t%15s\t%15s\t%15s\n'%('temps','Energies',
-        'Magnetism','Specific Heat'))
-    zipped = zip(temps, Es, Ms, Cvs)
-    pl.savetxt(fid, zipped, fmt='%5.9f\t%5.9f\t%5.9f\t%5.9f')
-    fid.close()
-    print 'Data has been saved to: ',filename
+            Cv = (pl.average(E2)-(pl.average(En))**2)/(tempN*tempT**2)
+            Es = pl.append(Es, pl.average(En[-binAfter:]))
+            Ms = pl.append(Ms, pl.average(Mag[-binAfter:]))
+            Cvs = pl.append(Cvs, Cv)
+
+        # write temps, Es, Ms to file
+        filename = 'ising2D_reduced.txt'
+        fid = open(filename, 'w')
+        fid.write('# nodes:  %s\n'%tempN)
+        fid.write('# field:  %s\n'%tempH)
+        fid.write('# %15s\t%15s\t%15s\t%15s\n'%('temps','Energies',
+            'Magnetism','Specific Heat'))
+        zipped = zip(temps, Es, Ms, Cvs)
+        pl.savetxt(fid, zipped, fmt='%5.9f\t%5.9f\t%5.9f\t%5.9f')
+        fid.close()
+        print 'Data has been saved to: ',filename
 
     # plot energy vs. temp
     fig1 = pl.figure(1)
