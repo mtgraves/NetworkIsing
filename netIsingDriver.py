@@ -2,7 +2,7 @@
 # Main Driver for Ising Model Applied to Networks
 #
 # Author:               Max Graves
-# Last Revised:         01-MAY-2013
+# Last Revised:         06-MAY-2013
 # =============================================================================
 
 import networkx as nx
